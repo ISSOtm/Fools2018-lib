@@ -196,17 +196,27 @@ class Packet:
 
 class Connection:
 	
-	def __init__(self, ip, port, token):
+	def __init__(self, ip, port, token = ""):
 		self.ip = ip
 		self.port = port
 		self.token = token
 	
 	
+	def send_request(self, path, data):
+		headers = {'Accept-Identity': 'identity',  'Connection': 'close', 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': ' Python-urllib/3.5', 'Host': "{}:{}".format(self.ip, self.port)}
+		return req = request.Request("http://{}:{}".format(self.ip, self.port) + path)
+	
+	def register_account(self, username, password, message):
+		self.send_request("/api/register", "username={}&password={}&message={}".format(username, password, message))
+	
+	# FIXME: Check if this request returns the token and nothing else
+	def get_token(self, username, password):
+		self.token = self.send_request("/api/relogin", "username={}&password={}".format(username, password))
+	
 	def send_packet(self, packet, retry_if_503 = True):
 		packet.write_checksum()
 		
-		headers = {'Accept-Identity': 'identity',  'Connection': 'close', 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': ' Python-urllib/3.3', 'Host': "{}:{}".format(self.ip, self.port)}
-		req = request.Request('http://{}:{}/req/{}'.format(self.ip, self.port, self.token), codecs.encode(packet.get_bytes(), "base64"), headers)
+		req = self.send_request("/req" + self.token, codecs.encode(packet.get_bytes(), "base64"))
 		
 		try:
 			response = request.urlopen(req)
@@ -343,33 +353,31 @@ Poké text dump:
 		return self.raw_data[ptr - 0xB800 : ptr - 0xB800 + size]
 
 
-class Lottery:
+
+def play_lottery(connection):
+	data = connection.send_packet( Packet.lottery_packet() ).get_data()
 	
-	def fetch(connection):
-		data = connection.send_packet( Packet.lottery_packet() ).get_data()
-		
-		nb_matches = data[0]
-		letters_raw = []
-		index = 1
-		while data[index] != 0xF6:
-			letters_raw.append(data[index])
-			index += 1
-		
-		return nb_matches, DeZZAZZify(letters_raw)
+	nb_matches = data[0]
+	letters_raw = []
+	index = 1
+	while data[index] != 0xF6:
+		letters_raw.append(data[index])
+		index += 1
+	
+	return nb_matches, DeZZAZZify(letters_raw)
 
 
-class Trend:
+def update_trend(connection):
+	trendsetters_map = Map(0x0E3C, connection)
+	trendsetter_name = trendsetters_map.get_data_at(0xBAFC, 0x10)
+	trend = trendsetters_map.get_data_at(0xBAEC, 0x10)
 	
-	def update(connection):
-		trendsetters_map = Map(0x0E3C, connection)
-		trendsetter_name = trendsetters_map.get_data_at(0xBAFC, 0x10)
-		trend = trendsetters_map.get_data_at(0xBAEC, 0x10)
-		
-		trendsetter_name = DeZZAZZify( trendsetter_name[:trendsetter_name.index(0xF6)] )
-		trend = DeZZAZZify( trend[:trend.index(0xF6)] )
-		return trendsetter_name, trend
-		
+	trendsetter_name = DeZZAZZify( trendsetter_name[:trendsetter_name.index(0xF6)] )
+	trend = DeZZAZZify( trend[:trend.index(0xF6)] )
+	return trendsetter_name, trend
 	
-	def set(trend_str, connection):
-		return connection.send_packet(Packet.trend_packet(trend_str))
+
+# FIXME: Might not be working, I got a 500 last time.
+def set_trend(trend_str, connection):
+	return connection.send_packet(Packet.trend_packet(trend_str))
 
