@@ -14,6 +14,7 @@
 
 from urllib import request
 import codecs
+import json
 
 
 Poke_chars = [
@@ -99,10 +100,10 @@ class Packet:
 	
 	
 	def __init__(self, type = 0, data = []):
-		self.checksum = (0,0)
 		self.set_type(type)
 		# Set data and length
 		self.set_data(data)
+		self.write_checksum()
 	
 	def from_bytes(bytes):
 		packet = Packet(bytes[4], list(bytes[5:]))
@@ -196,27 +197,34 @@ class Packet:
 
 class Connection:
 	
-	def __init__(self, ip, port, token = ""):
+	def __init__(self, ip="167.99.192.164", port="12709", token = ""):
 		self.ip = ip
 		self.port = port
 		self.token = token
 	
 	
-	def send_request(self, path, data):
+	def request(self, path, data):
+		if (isinstance(data, str)):
+			data = bytes(data, "utf8")
 		headers = {'Accept-Identity': 'identity',  'Connection': 'close', 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': ' Python-urllib/3.5', 'Host': "{}:{}".format(self.ip, self.port)}
-		return req = request.Request("http://{}:{}".format(self.ip, self.port) + path)
+		req = request.Request("http://{}:{}".format(self.ip, self.port) + path, data, headers)
+		return req
 	
 	def register_account(self, username, password, message):
-		self.send_request("/api/register", "username={}&password={}&message={}".format(username, password, message))
+		self.request("/api/register", "username={}&password={}&message={}".format(username, password, message))
 	
 	# FIXME: Check if this request returns the token and nothing else
 	def get_token(self, username, password):
-		self.token = self.send_request("/api/relogin", "username={}&password={}".format(username, password))
+		req = self.request("/api/relogin", "username={}&password={}".format(username, password))
+		response = request.urlopen(req).read().decode("utf8")
+		token = json.loads(response)['sessid']
+		self.token = token
+		return token
 	
 	def send_packet(self, packet, retry_if_503 = True):
 		packet.write_checksum()
 		
-		req = self.send_request("/req" + self.token, codecs.encode(packet.get_bytes(), "base64"))
+		req = self.request("/req/" + self.token, codecs.encode(packet.get_bytes(), "base64")[:-1]) # strip trailing newline
 		
 		try:
 			response = request.urlopen(req)
