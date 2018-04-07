@@ -123,6 +123,9 @@ class Packet:
 	
 	def lottery_packet():
 		return Packet(Packet.TYPE_LOTTERY, [0xFF])
+		
+	def therapy_packet():
+		return Packet(Packet.TYPE_THERAPY, [0xFF])
 	
 	def cavern4_packet():
 		return Packet(Packet.TYPE_CAVERN4, [0x13, 0x37, 0xCC])
@@ -373,6 +376,13 @@ def play_lottery(connection):
 		index += 1
 	
 	return nb_matches, DeZZAZZify(letters_raw)
+	
+def get_fun_value(connection):
+	return connection.send_packet(Packet.map_name_packet(0x0110)).get_data()[-1]
+	
+def set_fun_value(connection):
+	connection.send_packet(Packet.therapy_packet())
+	return get_fun_value()
 
 
 def update_trend(connection):
