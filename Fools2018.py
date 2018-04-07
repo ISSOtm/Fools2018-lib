@@ -214,7 +214,8 @@ class Connection:
 		return req
 	
 	def register_account(self, username, password, message):
-		self.request("/api/register", "username={}&password={}&message={}".format(username, password, message))
+		req = self.request("/api/register", "username={}&password={}&message={}".format(username, password, message))
+		return request.urlopen(req).read()
 	
 	# FIXME: Check if this request returns the token and nothing else
 	def get_token(self, username, password):
@@ -382,7 +383,7 @@ def get_fun_value(connection):
 	
 def set_fun_value(connection):
 	connection.send_packet(Packet.therapy_packet())
-	return get_fun_value()
+	return get_fun_value(connection)
 
 
 def update_trend(connection):
