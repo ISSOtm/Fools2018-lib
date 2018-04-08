@@ -1,12 +1,20 @@
+#!/usr/bin/python3
+"""	
+	Written by jfb1337
+	Thanks to ISSOtm, Parzival, Niedzejkob, Riley/RoL, and TheZZAZZGlitch
+"""
+
 from Fools2018 import Connection, Packet, Map, set_fun_value, get_fun_value
 from time import sleep
+import os
+import codecs
 from os import mkdir
 from urllib.request import HTTPError
 
 dump_folder = "fun_dumps"
 log_filename = "fun_event_log"
 valid_maps = [
-	0x0000, # MZ, The One And Only
+	0x0000,
 	0x0001,
 	0x0110,
 	0x0210,
@@ -150,15 +158,42 @@ valid_maps = [
 fun_dumps = {}
 num_seen_fun_vals = 0
 
-connection = Connection()
-connection.get_token("WDGasterDump", "redacted")
-fun_val = get_fun_value(connection)
-
 try:
 	mkdir(dump_folder)
 except FileExistsError:
 	pass
-log_file = open(log_filename, "w")
+	
+class RawMap:
+	def __init__(self, data):
+		self.raw_data = data
+# at some point this script crashed due to not handling a ratelimit properly
+# so I want to resume from existing data - don't want to have to make more requests than necassary
+for dir in os.listdir(dump_folder):
+	fun_val = int(dir)
+	fun_dumps[fun_val]={}
+	num_seen_fun_vals+=1
+	for map in os.listdir("{}/{}".format(dump_folder, fun_val)):
+		id = int(map[0:4], 16)
+		map_file = open("{}/{}/{}".format(dump_folder, fun_val, map))
+		line = ""
+		dump=""
+		while line != "Raw dump:":
+			line=map_file.readline()[:-1]
+		while line != "":
+			line=map_file.readline()[:-1]
+			dump+=line
+		map_file.close()
+		fun_dumps[fun_val][id] = RawMap(list(codecs.decode(dump,'hex_codec')))
+		
+print(num_seen_fun_vals)
+
+log_file = open(log_filename, "a")
+
+connection = Connection()
+connection.get_token("WDGasterDump", "redacted")
+fun_val = get_fun_value(connection)
+
+
 
 def get_fresh_fun_val():
 	global fun_val, fun_dumps, num_seen_fun_vals, connection
@@ -166,18 +201,23 @@ def get_fresh_fun_val():
 	while (fun_val in fun_dumps):
 		fun_val = set_fun_value(connection)
 		attempts+=1
+		if attempts%4 == 0:
+			print("Made {} of attempts at finding a fun value. Sleeping.".format(attempts))
+			sleep(4)
 	print("Found a new fun value after {} attempts: {}".format(attempts, fun_val))
 	num_seen_fun_vals+=1
 	return fun_val
 	
 def myhex(num):
-	return hex(map_id)[2:]
+	return hex(map_id)[2:].zfill(4)
 	
-while (num_seen_fun_vals < 255):
+#apparently fun value 255 doesn't exist - so this is 255 not 256
+while num_seen_fun_vals < 255:
 	get_fresh_fun_val()
 	try:
 		mkdir("{}/{}".format(dump_folder, fun_val))
 	except FileExistsError:
+		print("this directory shouldn't already exist...")
 		pass
 		
 	print("Dumping maps for fun value {}".format(fun_val))
@@ -203,14 +243,16 @@ while (num_seen_fun_vals < 255):
 					other_map = fun_dumps[val][map_id]
 					if (other_map.raw_data != map.raw_data):
 						msg = "Map 0x{} differs in fun values {} and {}".format(myhex(map_id), fun_val, val)
-						log_file.write(msg)
+						
+						log_file.write(msg+"\n")
+						log_file.flush()
 						print(msg)
 	
 		sleep(0.25)
 		
-	
-	
 log_file.close()
+	
+
 	
 
 

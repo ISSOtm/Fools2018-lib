@@ -15,6 +15,7 @@
 from urllib import request
 import codecs
 import json
+from time import sleep
 
 
 Poke_chars = [
