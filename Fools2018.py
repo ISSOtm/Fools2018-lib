@@ -119,8 +119,7 @@ class Packet:
 		return Packet(Packet.TYPE_MAP, [map_id // 0x100, map_id % 0x100])
 	
 	def trend_packet(trend_str):
-		# The packet must be 0x15 bytes in length
-		return Packet(Packet.TYPE_TREND, ZZAZZify(trend_str) + b"\xf6" + b" " * ( 15 - len(trend_str) ))
+		return Packet(Packet.TYPE_TREND, ZZAZZify(trend_str) + b"\xf6")
 	
 	def lottery_packet():
 		return Packet(Packet.TYPE_LOTTERY, [0xFF])
