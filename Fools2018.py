@@ -120,7 +120,7 @@ class Packet:
 	
 	def trend_packet(trend_str):
 		# The packet must be 0x15 bytes in length
-		return Packet(Packet.TYPE_TREND, ZZAZZify( trend_str + "f" * ( 16 - len(trend_str)) ))
+		return Packet(Packet.TYPE_TREND, ZZAZZify(trend_str) + b"\xf6" + b" " * ( 15 - len(trend_str) ))
 	
 	def lottery_packet():
 		return Packet(Packet.TYPE_LOTTERY, [0xFF])
@@ -218,7 +218,6 @@ class Connection:
 		req = self.request("/api/register", "username={}&password={}&message={}".format(username, password, message))
 		return request.urlopen(req).read()
 	
-	# FIXME: Check if this request returns the token and nothing else
 	def get_token(self, username, password):
 		req = self.request("/api/relogin", "username={}&password={}".format(username, password))
 		response = request.urlopen(req).read().decode("utf8")
@@ -397,7 +396,6 @@ def update_trend(connection):
 	return trendsetter_name, trend
 	
 
-# FIXME: Might not be working, I got a 500 last time.
 def set_trend(trend_str, connection):
 	return connection.send_packet(Packet.trend_packet(trend_str))
 
