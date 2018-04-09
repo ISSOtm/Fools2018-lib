@@ -14,6 +14,6 @@ connection = Fools2018.Connection(ip, port, token)
 
 
 while True:
-	draw = Fools2018.Lottery.fetch(connection)
+	draw = Fools2018.play_lottery(connection)
 	print("[{}] Lottery draw: {} matches, letters are \"{}\"".format( time.strftime("%H:%M:%S"), draw[0], draw[1] ))
 	time.sleep(3 * 3600) # Wait until next draw
